@@ -45,13 +45,13 @@ namespace ChessEmulator
 
         private void createBoard()
         {
-            Image pawn   = Image.FromFile("Pawn.png");
-            Image king   = Image.FromFile("King.png");
-            Image queen  = Image.FromFile("Queen.png");
-            Image bishop = Image.FromFile("Bishop.png");
-            Image knight = Image.FromFile("Knight.png");
-            Image castle = Image.FromFile("Castle.png");
-            Image blank = Image.FromFile("Blank.png");
+            Image pawn   = ChessEmulator.Properties.Resources.Pawn;
+            Image king   =  ChessEmulator.Properties.Resources.King;
+            Image queen  = ChessEmulator.Properties.Resources.Queen;
+            Image bishop = ChessEmulator.Properties.Resources.Bishop;
+            Image knight = ChessEmulator.Properties.Resources.Knight;
+            Image castle = ChessEmulator.Properties.Resources.Castle;
+            Image blank  = ChessEmulator.Properties.Resources.Blank;
             b = new Board();
             b.InitializeBoardState(blank, king, queen, bishop, knight, castle, pawn);
 
