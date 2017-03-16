@@ -18,6 +18,8 @@ namespace ChessEmulator
         public static Image PAWN;
         public static Image BLANK;
 
+        internal Emulator emulatorREF;
+
         //Used for collision detection -1 = non king black -2 = king black 1 = non king white 2 = king white
         public int[,] BoardState = new int[8, 8];
 
@@ -26,8 +28,9 @@ namespace ChessEmulator
 
         public PictureBox[,] BoardPicture = new PictureBox[8, 8];
 
-        public void InitializeBoardState(Image Blank, Image King, Image Queen, Image Bishop, Image Knight, Image Castle, Image Pawn)
+        public void InitializeBoardState(Image Blank, Image King, Image Queen, Image Bishop, Image Knight, Image Castle, Image Pawn, Emulator REF)
         {
+            emulatorREF = REF;
             KING = King;
             QUEEN = Queen;
             BISHOP = Bishop;
@@ -149,6 +152,7 @@ namespace ChessEmulator
                     BoardPicture[i, j].Name = i + "," + j;
                     BoardPicture[i, j].MouseHover += new EventHandler(tile_hover);
                     BoardPicture[i, j].MouseLeave += new EventHandler(tile_leave);
+                    BoardPicture[i, j].MouseClick += new MouseEventHandler(tile_select);
                 }
             }
             //White pieces
@@ -198,6 +202,17 @@ namespace ChessEmulator
 
         }
 
+        public Board Clone(Board b)
+        {
+            Board newB = new Board();
+            newB.emulatorREF = emulatorREF;
+            newB.BoardState = this.BoardState;
+            newB.BoardPicture = this.BoardPicture;
+            newB.BoardCalculations = this.BoardCalculations;
+
+            return newB;
+        }
+
         public static Point[] GetNeighbours(Point p, int size)
         {
             IEnumerable<Point> neighbours = from x in Enumerable.Range(p.X - 1, 3)
@@ -216,14 +231,135 @@ namespace ChessEmulator
                 for (int y = 0; y < 8; y++)
                 {
                     if (this.BoardCalculations[x, y] != null)
+                    {
                         if (this.BoardCalculations[x, y].side == side)
+                        {
                             pieces.Add(BoardCalculations[x, y]);
+                        }
+                    }
                 }
             }
 
             return pieces;
         }
+        
 
+        public List<Move> getAllMoves(int side, Board b)
+        {
+            List<Move> moves = new List<Move>();
+            List<Piece> p = this.getPieces(side);
+
+            foreach (Piece pc in p)
+            {
+
+                foreach (Point loc in pc.PotentialMoves(b))
+                {
+                    Move m;
+                    m.move = pc;
+                    m.moveTo = loc;
+                    moves.Add(m);
+                }
+
+            }
+
+            return moves;
+        }
+
+        /// <summary>
+        /// Special get all moves check that has special handling for kings.
+        /// Use this whenever instead of getAllMoves when you think that  
+        /// </summary>
+        /// <param name="side"></param>
+        /// <returns></returns>
+        public List<Move> getAllmostAllMoves(int side, Board b)
+        {
+            List<Move> moves = new List<Move>();
+            List<Piece> p = this.getPieces(side);
+
+            foreach (Piece pc in p)
+            {
+                if (pc.name == "King")
+                //This was causing infinite loops as the king has to check if its move will result in its death, 
+                //calling canBeKilled which calls getAllMoves which calls potentialMoves
+                {
+                    //TODO don't allow a king to move into another king's potential moves
+                }
+                else
+                {
+                    foreach (Point loc in pc.PotentialMoves(b))
+                    {
+                        Move m;
+                        m.move = pc;
+                        m.moveTo = loc;
+                        moves.Add(m);
+                    }
+                }
+            }
+
+            return moves;
+        }
+
+        public bool canBeKilled(Point p, int side)
+        {
+            int otherSide = side == 1 ? -1 : 1;
+
+            foreach(Move mv in getAllmostAllMoves(otherSide, this))
+            {
+                if (mv.moveTo == p)
+                    return true;
+            }
+            return false;
+        }
+
+        public bool canKingBeKilled(int side, Board b)
+        {
+            int otherSide = side == 1 ? -1 : 1;
+
+            Point p = new Point(0, 0);
+
+            foreach(Piece pc in getPieces(side))
+            {
+                if(pc.name == "King")
+                {
+                    p = pc.curPoint;
+                    break;
+                }
+            }
+
+            foreach (Move mv in getAllmostAllMoves(otherSide, b))
+            {
+                if (mv.moveTo == p)
+                    return true;
+            }
+            return false;
+        }
+
+        public bool willMoveSaveKing(Move mv)
+        {
+            if (!canKingBeKilled(mv.move.side, this))//King isn't in danger
+                return true;
+
+            int otherSide = mv.move.side == 1 ? -1 : 1;
+
+            Point p = new Point(0, 0);
+
+            foreach (Piece pc in getPieces(mv.move.side))
+            {
+                if (pc.name == "King")
+                {
+                    p = pc.curPoint;
+                    break;
+                }
+            }
+            Board duplicate = this.Clone(this);
+            mv.move.Move(mv.moveTo, duplicate);
+
+            return !canKingBeKilled(mv.move.side, duplicate);
+           
+
+        }
+
+        #region userInput
         private void tile_hover(object sender, System.EventArgs e)
         {
             PictureBox b = sender as PictureBox;
@@ -233,7 +369,7 @@ namespace ChessEmulator
             if (BoardCalculations[x, y] != null)
                 foreach (Point m in BoardCalculations[x, y].PotentialMoves(this))
                 {
-                    BoardPicture[m.X, m.Y].Image = Emulator.TintImage(BoardPicture[m.X, m.Y].Image, 2);
+                    BoardPicture[m.X, m.Y].Image = Emulator.TintImageGreen(BoardPicture[m.X, m.Y].Image);
                 }
         }
 
@@ -246,7 +382,8 @@ namespace ChessEmulator
             int x = Convert.ToInt16(s[0]);
             int y = Convert.ToInt16(s[1]);
 
-            if (BoardCalculations[x, y] != null)
+            if (BoardCalculations[x, y] != null && new Point(x,y) != selectedTile)
+            {
                 foreach (Point m in BoardCalculations[x, y].PotentialMoves(this))
                 {
                     int X = m.X;
@@ -271,6 +408,196 @@ namespace ChessEmulator
                         BoardPicture[X, Y].Image = (p.side == 1 ? img : Emulator.InvertImage(img));
                     }
                 }
+            }
         }
+
+
+        Point selectedTile = new Point(-1,-1);
+        private bool currentlyMoving = false;
+        
+        private void tile_select(object sender, System.EventArgs e)
+        {
+            PictureBox b = sender as PictureBox;
+            string[] s = b.Name.Split(',');
+            int x = Convert.ToInt16(s[0]);
+            int y = Convert.ToInt16(s[1]);
+
+            //Very first check to see if the player tried to complete a move
+            if (new Point(x, y) != selectedTile
+                && currentlyMoving
+                && BoardCalculations[selectedTile.X, selectedTile.Y].PotentialMoves(this).Contains(new Point(x, y))
+                && Emulator.playersTurn
+                && BoardCalculations[selectedTile.X, selectedTile.Y].side == Emulator.curSide)
+            {
+
+                //Unhighlight selected move
+                Piece p = BoardCalculations[selectedTile.X, selectedTile.Y];
+                Image img = Board.PAWN;
+                switch (p.name)
+                {
+                    case "King": img = Board.KING; break;
+                    case "Queen": img = Board.QUEEN; break;
+                    case "Bishop": img = Board.BISHOP; break;
+                    case "Knight": img = Board.KNIGHT; break;
+                    case "Castle": img = Board.CASTLE; break;
+                    case "Pawn": img = Board.PAWN; break;
+                }
+                BoardPicture[selectedTile.X, selectedTile.Y].Image = (p.side == 1 ? img : Emulator.InvertImage(img));
+
+
+                //Unhighlight potential moves
+                foreach (Point m in BoardCalculations[selectedTile.X, selectedTile.Y].PotentialMoves(this))
+                {
+                    int X = m.X;
+                    int Y = m.Y;
+                    if (BoardCalculations[X, Y] == null)
+                    {
+                        BoardPicture[X, Y].Image = Board.BLANK;
+                    }
+                    else
+                    {
+                        p = BoardCalculations[X, Y];
+                        img = Board.PAWN;
+                        switch (p.name)
+                        {
+                            case "King": img = Board.KING; break;
+                            case "Queen": img = Board.QUEEN; break;
+                            case "Bishop": img = Board.BISHOP; break;
+                            case "Knight": img = Board.KNIGHT; break;
+                            case "Castle": img = Board.CASTLE; break;
+                            case "Pawn": img = Board.PAWN; break;
+                        }
+                        BoardPicture[X, Y].Image = (p.side == 1 ? img : Emulator.InvertImage(img));
+                    }
+                }
+
+                //Move selected piece
+                BoardCalculations[selectedTile.X, selectedTile.Y].Move(new Point(x, y), this);
+                emulatorREF.NextTurn();
+                currentlyMoving = false;
+
+                selectedTile = new Point(-1, -1);
+                return;
+            }
+
+
+            if (BoardCalculations[x, y] != null)
+            {
+                //If the player was not currently making a move, but just selected a tile
+                if (new Point(x, y) != selectedTile && !currentlyMoving)
+                {
+                    selectedTile = new Point(x, y);
+                    BoardPicture[x, y].Image = Emulator.TintImageBlue(BoardPicture[x, y].Image);
+                    foreach (Point m in BoardCalculations[x, y].PotentialMoves(this))
+                    {
+                        BoardPicture[m.X, m.Y].Image = Emulator.TintImageGreen(BoardPicture[m.X, m.Y].Image);
+                    }
+
+                    currentlyMoving = true;
+                }
+                //If the player selected a new tile that was not part of the potential moves change 
+                //the selected tile to that tile and unhighlight the previous tiles
+                else if (new Point(x, y) != selectedTile && currentlyMoving
+                    && !BoardCalculations[selectedTile.X,selectedTile.Y].PotentialMoves(this).Contains(new Point(x,y)))
+                {
+                    BoardPicture[x, y].Image = Emulator.TintImageBlue(BoardPicture[x, y].Image);
+                    foreach (Point m in BoardCalculations[x, y].PotentialMoves(this))
+                    {
+                        BoardPicture[m.X, m.Y].Image = Emulator.TintImageGreen(BoardPicture[m.X, m.Y].Image);
+                    }
+
+                    //Unhighlight selected move
+                    Piece p = BoardCalculations[selectedTile.X, selectedTile.Y];
+                    Image img = Board.PAWN;
+                    switch (p.name)
+                    {
+                        case "King": img = Board.KING; break;
+                        case "Queen": img = Board.QUEEN; break;
+                        case "Bishop": img = Board.BISHOP; break;
+                        case "Knight": img = Board.KNIGHT; break;
+                        case "Castle": img = Board.CASTLE; break;
+                        case "Pawn": img = Board.PAWN; break;
+                    }
+                    BoardPicture[selectedTile.X, selectedTile.Y].Image = (p.side == 1 ? img : Emulator.InvertImage(img));
+
+
+                    //Unhighlight potential moves
+                    foreach (Point m in BoardCalculations[selectedTile.X, selectedTile.Y].PotentialMoves(this))
+                    {
+                        int X = m.X;
+                        int Y = m.Y;
+                        if (BoardCalculations[X, Y] == null)
+                        {
+                            BoardPicture[X, Y].Image = Board.BLANK;
+                        }
+                        else
+                        {
+                            p = BoardCalculations[X, Y];
+                            img = Board.PAWN;
+                            switch (p.name)
+                            {
+                                case "King": img = Board.KING; break;
+                                case "Queen": img = Board.QUEEN; break;
+                                case "Bishop": img = Board.BISHOP; break;
+                                case "Knight": img = Board.KNIGHT; break;
+                                case "Castle": img = Board.CASTLE; break;
+                                case "Pawn": img = Board.PAWN; break;
+                            }
+                            BoardPicture[X, Y].Image = (p.side == 1 ? img : Emulator.InvertImage(img));
+                        }
+                    }
+                    selectedTile = new Point(x, y);
+                }
+                
+                
+            }
+            else if(currentlyMoving)
+            {
+                
+                //Unhighlight selected move
+                Piece p = BoardCalculations[selectedTile.X, selectedTile.Y];
+                Image img = Board.PAWN;
+                switch (p.name)
+                {
+                    case "King": img = Board.KING; break;
+                    case "Queen": img = Board.QUEEN; break;
+                    case "Bishop": img = Board.BISHOP; break;
+                    case "Knight": img = Board.KNIGHT; break;
+                    case "Castle": img = Board.CASTLE; break;
+                    case "Pawn": img = Board.PAWN; break;
+                }
+                BoardPicture[selectedTile.X, selectedTile.Y].Image = (p.side == 1 ? img : Emulator.InvertImage(img));
+                
+
+                //Unhighlight potential moves
+                foreach (Point m in BoardCalculations[selectedTile.X, selectedTile.Y].PotentialMoves(this))
+                {
+                    int X = m.X;
+                    int Y = m.Y;
+                    if (BoardCalculations[X, Y] == null)
+                    {
+                        BoardPicture[X, Y].Image = Board.BLANK;
+                    }
+                    else
+                    {
+                        p = BoardCalculations[X, Y];
+                        img = Board.PAWN;
+                        switch (p.name)
+                        {
+                            case "King": img = Board.KING; break;
+                            case "Queen": img = Board.QUEEN; break;
+                            case "Bishop": img = Board.BISHOP; break;
+                            case "Knight": img = Board.KNIGHT; break;
+                            case "Castle": img = Board.CASTLE; break;
+                            case "Pawn": img = Board.PAWN; break;
+                        }
+                        BoardPicture[X, Y].Image = (p.side == 1 ? img : Emulator.InvertImage(img));
+                    }
+                }
+                selectedTile = new Point(-1, -1);
+                currentlyMoving = false;
+            }
+        }
+        #endregion userInput
     }
 }

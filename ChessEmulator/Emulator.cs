@@ -22,23 +22,55 @@ namespace ChessEmulator
             createBoard();
         }
 
-        int curSide = 1;
-        Player p1 = new Rando(1);
-        Player p2 = new Rando(-1);
+        public static bool playersTurn = true;
+        public static int curSide = 1;
+        public Player p1 = new Rando(1);
+        public Player p2 = new Castler(-1);
 
-        private void NextTurn()
+        public void NextTurn()
         {
-            if(curSide == -1)
-            {
-                Move c = p1.computeMove(b);
-                c.move.Move(c.moveTo, b);
-            }
-            else
-            {
-                Move c = p2.computeMove(b);
-                c.move.Move(c.moveTo, b);
-            }
+            //Increment current side
             curSide = (curSide >= 1 ? -1 : 1);
+
+
+            //Draw check
+            List<Move> moves = new List<Move>();
+            List<Piece> p = b.getPieces(curSide);
+
+            foreach (Piece pc in p)
+            {
+                foreach (Point loc in pc.PotentialMoves(b))
+                {
+                    Move m;
+                    m.move = pc;
+                    m.moveTo = loc;
+                    moves.Add(m);
+                }
+            }
+            if(moves.Count <= 0)
+            {
+                infoBox.Text = "Draw";
+                button1.Enabled = false;
+            }
+
+            p.Clear();
+            p = (b.getPieces((curSide >= 1 ? -1 : 1)));
+            moves.Clear();
+            foreach (Piece pc in p)
+            {
+                foreach (Point loc in pc.PotentialMoves(b))
+                {
+                    Move m;
+                    m.move = pc;
+                    m.moveTo = loc;
+                    moves.Add(m);
+                }
+            }
+            if (moves.Count <= 0)
+            {
+                infoBox.Text = "Draw";
+                button1.Enabled = false;
+            }
 
             //TODO put in victory check
         }
@@ -53,7 +85,7 @@ namespace ChessEmulator
             Image castle = ChessEmulator.Properties.Resources.Castle;
             Image blank  = ChessEmulator.Properties.Resources.Blank;
             b = new Board();
-            b.InitializeBoardState(blank, king, queen, bishop, knight, castle, pawn);
+            b.InitializeBoardState(blank, king, queen, bishop, knight, castle, pawn, this);
 
             for(int i = 0; i < 8;i++)
             {
@@ -80,7 +112,7 @@ namespace ChessEmulator
             return pic;
         }
 
-        public static Bitmap TintImage(Image n, float greenTint)
+        public static Bitmap TintImageGreen(Image n)
         {
             Bitmap pic = new Bitmap(n);
             for (int y = 0; (y <= (pic.Height - 1)); y++)
@@ -95,9 +127,34 @@ namespace ChessEmulator
             return pic;
         }
 
+        public static Bitmap TintImageBlue(Image n)
+        {
+            Bitmap pic = new Bitmap(n);
+            for (int y = 0; (y <= (pic.Height - 1)); y++)
+            {
+                for (int x = 0; (x <= (pic.Width - 1)); x++)
+                {
+                    Color inv = pic.GetPixel(x, y);
+                    inv = Color.FromArgb(255, inv.R, inv.G, 255);
+                    pic.SetPixel(x, y, inv);
+                }
+            }
+            return pic;
+        }
+
 
         private void button1_Click(object sender, EventArgs e)
         {
+            if (curSide == 1)
+            {
+                Move c = p1.computeMove(b);
+                c.move.Move(c.moveTo, b);
+            }
+            else
+            {
+                Move c = p2.computeMove(b);
+                c.move.Move(c.moveTo, b);
+            }
             NextTurn();
         }
     }

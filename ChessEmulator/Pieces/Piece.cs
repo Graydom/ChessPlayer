@@ -62,11 +62,16 @@ namespace ChessEmulator
 
         }
 
+        public static bool sameSide(int s1, int s2)
+        {
+            return (s1 > 0 && s2 > 0) || (s1 < 0 && s2 < 0);
+        }
+
     }
 
     public class Pawn : Piece
     {
-        bool unmoved = true;
+        public bool unmoved = true;
         public Pawn()
         {
             ID = curID++;
@@ -135,11 +140,12 @@ namespace ChessEmulator
     }
     public class King : Piece
     {
+        public bool unmoved = true;
         public King()
         {
             ID = curID++;
             name = "King";
-            side = 0;
+            side = 1;
             curPoint = new Point(0, 0);
             isAlive = true;
         }
@@ -157,11 +163,118 @@ namespace ChessEmulator
         {
             List<Point> moves = new List<Point>();
 
+
+
+            List<Point> n = new List<Point>();
+            n.Add(new Point(curPoint.X + 1, curPoint.Y));
+            n.Add(new Point(curPoint.X - 1, curPoint.Y));
+            n.Add(new Point(curPoint.X, curPoint.Y + 1));
+            n.Add(new Point(curPoint.X, curPoint.Y - 1));
+            n.Add(new Point(curPoint.X + 1, curPoint.Y + 1));
+            n.Add(new Point(curPoint.X - 1, curPoint.Y + 1));
+            n.Add(new Point(curPoint.X + 1, curPoint.Y - 1));
+            n.Add(new Point(curPoint.X - 1, curPoint.Y - 1));
+
+
+            foreach (Point p in n)
+            {
+                if (p.X >= 0 && p.X <= 7 && p.Y >= 0 && p.Y <= 7)
+                {
+                    //Make sure we aren't moving onto a friendly or moving into a place we can be captured
+                    if (!sameSide(b.BoardState[p.X, p.Y], side) 
+                     && !b.canBeKilled(p, side))
+                    {
+                        moves.Add(p);
+                    }
+                }
+            }
+
+            //Castling
+
+            List<Castle> castles = new List<Castle>();
+            foreach (Piece pc in b.getPieces(side))
+            {
+                if (pc.name == "Castle")
+                {
+                    Castle c = (Castle)pc;
+                    if(c.unmoved)
+                        castles.Add((Castle)pc);
+                }
+            }
+           
+            foreach(Castle c in castles)
+            {
+                int dir = 1;
+                if (curPoint.X - c.curPoint.X > 0)
+                    dir = -1;
+                
+                int sy = side == -1 ? 7 : 0;
+
+                if(dir == 1)
+                {
+                    //King can't move through or onto any point where it can be captured
+                    if (b.BoardState[5, sy] == 0
+                     && !b.canBeKilled(new Point(5, sy), side) 
+                     && b.BoardState[6, sy] == 0 
+                     && !b.canBeKilled(new Point(6, sy), side))
+                        moves.Add(c.curPoint);
+                }
+                else if(dir == -1)
+                {
+                    //King can't move through or onto any point where it can be captured
+                    if (b.BoardState[1, sy] == 0 
+                     && !b.canBeKilled(new Point(1, sy), side) 
+                     && b.BoardState[2, sy] == 0 
+                     && !b.canBeKilled(new Point(2,sy), side) 
+                     && b.BoardState[3, sy] == 0
+                     && !b.canBeKilled(new Point(3, sy), side))
+                        moves.Add(c.curPoint);
+                }
+                
+            }
+
             return moves.Distinct().ToArray();
         }
         public override Point[] PotentialMoves(Point p, Board b)
         {
             throw new NotImplementedException();
+        }
+
+        public override bool Move(Point p, Board b)
+        {
+            unmoved = false;
+
+            //Check if move was a castling move
+            if(b.BoardCalculations[p.X,p.Y] != null)//First make sure it isn't null
+            {
+                if(b.BoardCalculations[p.X,p.Y].name == "Castle" && sameSide(b.BoardCalculations[p.X,p.Y].side, side))
+                        //If the move location is a castle on the same side as the king, castle
+                {
+                    int bot = side == 1 ? 0 : 7;
+
+                    int dir = 1;
+                    if (curPoint.X - p.X > 0)
+                        dir = -1;
+
+                    int kx = 0;//King x pos
+                    int cx = 0;//Castle x pos
+
+                    if (dir == 1)
+                    {
+                        kx = 5;
+                        cx = 6;
+                    }
+                    else
+                    {
+                        kx = 2;
+                        cx = 3;
+                    }
+
+                    return b.BoardCalculations[curPoint.X, curPoint.Y].Move(new Point(cx, bot), b) &&  b.BoardCalculations[p.X, p.Y].Move(new Point(kx, bot), b);
+                }
+            }
+
+            return base.Move(p, b);
         }
     }
 
@@ -188,6 +301,54 @@ namespace ChessEmulator
         public override Point[] PotentialMoves(Board b)
         {
             List<Point> moves = new List<Point>();
+
+            List<Point> orth = new List<Point>();
+            List<Point> dirs = new List<Point>();
+            dirs.Add(new Point(1, 0));
+            dirs.Add(new Point(1, -1));
+            dirs.Add(new Point(1, 1));
+
+            dirs.Add(new Point(-1, 0));
+            dirs.Add(new Point(-1, -1));
+            dirs.Add(new Point(-1, 1));
+
+            dirs.Add(new Point(0, 1));
+            dirs.Add(new Point(0, -1));
+
+            foreach(Point p in dirs)
+            {
+                Point cur = curPoint;
+                while (true)
+                {
+                    cur.X += p.X;
+                    cur.Y += p.Y;
+                    if (cur.X >= 0 && cur.X <= 7 && cur.Y >= 0 && cur.Y <= 7)
+                    {
+                        if (b.BoardState[cur.X, cur.Y] == 0)
+                            orth.Add(new Point(cur.X, cur.Y));
+                        else if (!sameSide(b.BoardState[cur.X, cur.Y], side))
+                        {
+                            orth.Add(new Point(cur.X, cur.Y));
+                            break;
+                        }
+                        else
+                            break;
+                    }
+                    else
+                        break;
+                } 
+            }
+
+            foreach (Point p in orth)
+            {
+                if (p.X >= 0 && p.X <= 7 && p.Y >= 0 && p.Y <= 7)//This shouldn't matter
+                {
+                    if (!sameSide(b.BoardState[p.X, p.Y], side))
+                    {
+                        moves.Add(p);
+                    }
+                }
+            }
 
             return moves.Distinct().ToArray();
         }
@@ -220,6 +381,51 @@ namespace ChessEmulator
         public override Point[] PotentialMoves(Board b)
         {
             List<Point> moves = new List<Point>();
+
+            List<Point> orth = new List<Point>();
+            List<Point> dirs = new List<Point>();
+
+            dirs.Add(new Point(1, -1));
+            dirs.Add(new Point(1, 1));
+
+            dirs.Add(new Point(-1, -1));
+            dirs.Add(new Point(-1, 1));
+
+
+            foreach (Point p in dirs)
+            {
+                Point cur = curPoint;
+                while (true)
+                {
+                    cur.X += p.X;
+                    cur.Y += p.Y;
+                    if (cur.X >= 0 && cur.X <= 7 && cur.Y >= 0 && cur.Y <= 7)
+                    {
+                        if (b.BoardState[cur.X, cur.Y] == 0)
+                            orth.Add(new Point(cur.X, cur.Y));
+                        else if (!sameSide(b.BoardState[cur.X, cur.Y], side))
+                        {
+                            orth.Add(new Point(cur.X, cur.Y));
+                            break;
+                        }
+                        else
+                            break;
+                    }
+                    else
+                        break;
+                } 
+            }
+
+            foreach (Point p in orth)
+            {
+                if (p.X >= 0 && p.X <= 7 && p.Y >= 0 && p.Y <= 7)//This shouldn't matter
+                {
+                    if (!sameSide(b.BoardState[p.X, p.Y], side))
+                    {
+                        moves.Add(p);
+                    }
+                }
+            }
 
             return moves.Distinct().ToArray();
         }
@@ -255,6 +461,28 @@ namespace ChessEmulator
         {
             List<Point> moves = new List<Point>();
 
+            List<Point> n = new List<Point>();
+            n.Add(new Point(curPoint.X + 2, curPoint.Y + 1));
+            n.Add(new Point(curPoint.X + 2, curPoint.Y - 1));
+            n.Add(new Point(curPoint.X - 2, curPoint.Y + 1));
+            n.Add(new Point(curPoint.X - 2, curPoint.Y - 1));
+
+            n.Add(new Point(curPoint.X - 1, curPoint.Y - 2));
+            n.Add(new Point(curPoint.X + 1, curPoint.Y - 2));
+            n.Add(new Point(curPoint.X - 1, curPoint.Y + 2));
+            n.Add(new Point(curPoint.X + 1, curPoint.Y + 2));
+
+            foreach(Point p in n)
+            {
+                if (p.X >= 0 && p.X <= 7 && p.Y >= 0 && p.Y <= 7)
+                {
+                    if (!sameSide(b.BoardState[p.X, p.Y], side))
+                    {
+                        moves.Add(p);
+                    }
+                }
+            }
+
             return moves.Distinct().ToArray();
         }
         public override Point[] PotentialMoves(Point p, Board b)
@@ -265,6 +493,7 @@ namespace ChessEmulator
 
     public class Castle : Piece
     {
+        public bool unmoved = true;
         public Castle()
         {
             ID = curID++;
@@ -287,11 +516,65 @@ namespace ChessEmulator
         {
             List<Point> moves = new List<Point>();
 
+            List<Point> orth = new List<Point>();
+
+            List<Point> dirs = new List<Point>();
+            dirs.Add(new Point(1, 0));
+            dirs.Add(new Point(-1, 0));
+            dirs.Add(new Point(0, 1));
+            dirs.Add(new Point(0, -1));
+
+            foreach (Point p in dirs)
+            {
+                Point cur = curPoint;
+                while (true)
+                {
+                    cur.X += p.X;
+                    cur.Y += p.Y;
+                    if (cur.X >= 0 && cur.X <= 7 && cur.Y >= 0 && cur.Y <= 7)
+                    {
+                        if (b.BoardState[cur.X, cur.Y] == 0)
+                            orth.Add(new Point(cur.X, cur.Y));
+                        else if (!sameSide(b.BoardState[cur.X, cur.Y], side))
+                        {
+                            orth.Add(new Point(cur.X, cur.Y));
+                            break;
+                        }
+                        else
+                            break;
+                    }
+                    else
+                        break;
+                } 
+                
+
+            }
+
+            foreach (Point p in orth)
+            {
+                if (p.X >= 0 && p.X <= 7 && p.Y >= 0 && p.Y <= 7)//This shouldn't matter
+                {
+                    if (!sameSide(b.BoardState[p.X, p.Y], side))
+                    {
+                        moves.Add(p);
+                    }
+                }
+            }
+
             return moves.Distinct().ToArray();
         }
         public override Point[] PotentialMoves(Point p, Board b)
         {
             throw new NotImplementedException();
         }
+
+        public override bool Move(Point p, Board b)
+        {
+            unmoved = false;
+            return base.Move(p, b);
+        }
+
     }
+
+   
 }

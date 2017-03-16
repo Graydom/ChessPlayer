@@ -14,36 +14,98 @@ namespace ChessEmulator
     }
     public abstract class Player
     {
+        public Player(int SIDE)
+        {
+            side = SIDE;
+        }
+        public Player() { }
+
         public static Random rand = new Random();
         public string name;
         public int side = 1;
         public abstract Move computeMove(Board b);
     }
 
+    /// <summary>
+    /// Picks random moves
+    /// </summary>
     public class Rando : Player
     {
+
+        public Rando() { }
+
         public Rando(int SIDE)
         {
             side = SIDE;
         }
 
-        public Rando() { }
         public override Move computeMove(Board b)
         {
-            List<Move> moves = new List<Move>();
-            List<Piece> p = b.getPieces(side);
+            List<Move> moves = b.getAllMoves(side, b);
+            return moves[rand.Next(moves.Count)];
+        }
+    }
 
-            foreach(Piece pc in p)
+    /// <summary>
+    /// Attempts to get to a position where it can castle as fast as possible
+    /// </summary>
+    public class Castler : Player
+    {
+        public Castler() { }
+
+        public Castler(int SIDE)
+        {
+            side = SIDE;
+        }
+
+        public override Move computeMove(Board b)
+        {
+            //Find all valid moves
+            List<Move> moves = b.getAllMoves(side, b);
+
+            int sideToClear = (side == -1 ? 7 : 0);
+
+            Move mv = new Move();
+            mv.moveTo = new Point(-1, -1);
+
+            //If we can castle, then castle
+            foreach(Move v in moves)
             {
-                foreach(Point loc in pc.PotentialMoves(b))
+                if(v.move.name == "King")
                 {
-                    Move m;
-                    m.move = pc;
-                    m.moveTo = loc;
-                    moves.Add(m);
+                    if(b.BoardCalculations[v.moveTo.X, v.moveTo.Y] != null)
+                    {
+                        if (b.BoardCalculations[v.moveTo.X, v.moveTo.Y].name == "Castle")
+                        {
+                            return v;
+                        }
+                    }
                 }
             }
-            return moves[rand.Next(moves.Count)];
+
+
+            foreach(Move v in moves)
+            {
+                if (v.move.name != "Castle" && v.move.name != "King" && v.moveTo.Y != sideToClear && v.move.curPoint.Y == sideToClear)
+                    mv = v;
+            }
+            if(mv.moveTo.X == -1)//If we found no move that removed itself from the home row move an unmoved pawn
+            {
+                foreach (Move v in moves)
+                {
+                    if (v.move.name != "Castle" && v.move.name != "King" && v.move.name == "Pawn" && v.moveTo.Y != sideToClear)
+                    {
+                        Pawn cp = (Pawn)v.move;
+                        if(cp.unmoved)
+                            mv = v;
+                    }
+                        
+                }
+            }
+
+            if (mv.moveTo.X == -1)//This shouldn't ever happen
+                mv = moves[0];
+            return mv;
         }
     }
 }
