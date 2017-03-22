@@ -31,12 +31,16 @@ namespace ChessEmulator
     /// </summary>
     public class Rando : Player
     {
-
-        public Rando() { }
+        
+        public Rando()
+        {
+            name = "Rando";
+        }
 
         public Rando(int SIDE)
         {
             side = SIDE;
+            name = "Rando";
         }
 
         public override Move computeMove(Board b)
@@ -47,15 +51,79 @@ namespace ChessEmulator
     }
 
     /// <summary>
+    /// Will pick a random move unless it can capture a piece.
+    /// </summary>
+    public class Killer : Player
+    {
+        public Killer()
+        {
+            name = "Killer";
+        }
+
+        public Killer(int SIDE)
+        {
+            side = SIDE;
+            name = "Killer";
+        }
+
+        public override Move computeMove(Board b)
+        {
+            List<Move> moves = b.getAllMoves(side, b);
+            Move bestMove = moves[rand.Next(moves.Count)];
+            int bestVal = -1;
+            foreach (Move mv in moves)
+            {
+                if (b.BoardCalculations[mv.moveTo.X, mv.moveTo.Y] != null)
+                {
+                    string name = b.BoardCalculations[mv.moveTo.X, mv.moveTo.Y].name;
+                    if (b.BoardCalculations[mv.moveTo.X, mv.moveTo.Y].side != side)
+                    {
+                        int curVal = -1;
+                        switch (name)
+                        {
+                            case "Queen":
+                                curVal = 8;
+                                break;
+                            case "Bishop":
+                                curVal = 6;
+                                break;
+                            case "Knight":
+                                curVal = 4;
+                                break;
+                            case "Castle":
+                                curVal = 2;
+                                break;
+                            case "Pawn":
+                                curVal = 1;
+                                break;
+                        }
+                        if(curVal > bestVal)
+                        {
+                            bestVal = curVal;
+                            bestMove = mv;
+                        }
+                    }
+                }
+            }
+            return bestMove;
+
+        }
+    }
+
+    /// <summary>
     /// Attempts to get to a position where it can castle as fast as possible
     /// </summary>
     public class Castler : Player
     {
-        public Castler() { }
+        public Castler()
+        {
+            name = "Castler";
+        }
 
         public Castler(int SIDE)
         {
             side = SIDE;
+            name = "Castler";
         }
 
         public override Move computeMove(Board b)

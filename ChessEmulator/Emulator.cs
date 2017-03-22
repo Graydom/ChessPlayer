@@ -14,18 +14,31 @@ namespace ChessEmulator
     public partial class Emulator : Form
     {
         internal Board b;
+
+        public static bool playersTurn = true;
+        public static int curSide = 1;
+        public Player p1 = new Rando(1);
+        public Player p2 = new Killer(-1);
+
         public Emulator()
         {
             InitializeComponent();
 
             //Create Picture Boxes
             createBoard();
+
+
+
+            //Create players
+            bool r = Player.rand.NextDouble() > .5;
+            p1 = new Rando(r ? 1 : -1);
+            p2 = new Killer(!r ? 1 : -1);
+
+            name1.Text = p2.name;
+            name2.Text = p1.name;
         }
 
-        public static bool playersTurn = true;
-        public static int curSide = 1;
-        public Player p1 = new Rando(1);
-        public Player p2 = new Castler(-1);
+        
 
         public void NextTurn()
         {
@@ -73,6 +86,29 @@ namespace ChessEmulator
             }
 
             //TODO put in victory check
+            if(b.canKingBeKilled(-1,b))
+            {
+                foreach(Move mv in b.getAllMoves(-1, b))
+                {
+                    if (b.willMoveSaveKing(mv))
+                        return;
+                }
+                playersTurn = false;
+                infoBox.Text = "White victory";
+                button1.Enabled = false;
+            }
+            else if(b.canKingBeKilled(1,b))
+            {
+                foreach (Move mv in b.getAllMoves(1, b))
+                {
+                    if (b.willMoveSaveKing(mv))
+                        return;
+                }
+                playersTurn = false;
+                infoBox.Text = "Black victory";
+                button1.Enabled = false;
+            }
+
         }
 
         private void createBoard()
@@ -156,6 +192,11 @@ namespace ChessEmulator
                 c.move.Move(c.moveTo, b);
             }
             NextTurn();
+        }
+
+        private void comboBox1_SelectedIndexChanged(object sender, EventArgs e)
+        {
+
         }
     }
 }
