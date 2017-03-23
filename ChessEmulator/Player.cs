@@ -9,6 +9,12 @@ namespace ChessEmulator
 {
     public struct Move
     {
+
+        public Move(Piece p, Point mt)
+        {
+            move = p;
+            moveTo = mt;
+        }
         public Piece move;
         public Point moveTo;
     }

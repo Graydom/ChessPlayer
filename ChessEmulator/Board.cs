@@ -286,7 +286,7 @@ namespace ChessEmulator
                 }
                 else
                 {
-                    foreach (Point loc in pc.PotentialMoves(b))
+                    foreach (Point loc in pc.PotentialMoves(b, false))
                     {
                         Move m;
                         m.move = pc;
