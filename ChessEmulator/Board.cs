@@ -206,9 +206,9 @@ namespace ChessEmulator
         {
             Board newB = new Board();
             newB.emulatorREF = emulatorREF;
-            newB.BoardState = this.BoardState;
-            newB.BoardPicture = this.BoardPicture;
-            newB.BoardCalculations = this.BoardCalculations;
+            newB.BoardState = (int[,])this.BoardState.Clone();
+            newB.BoardPicture = (PictureBox[,])this.BoardPicture.Clone();
+            newB.BoardCalculations = (Piece[,])this.BoardCalculations.Clone();
 
             return newB;
         }
