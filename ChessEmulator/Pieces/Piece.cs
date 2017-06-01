@@ -32,8 +32,6 @@ namespace ChessEmulator
 
         public virtual bool Move(Point p, Board b)
         {
-            if (b.BoardState[p.X, p.Y] == side)
-                Console.WriteLine("Captured a " + b.BoardCalculations[p.X, p.Y].name);
 
             int isKing = 1;
             if (name == "King")
@@ -137,6 +135,20 @@ namespace ChessEmulator
 
                 return validMoves.Distinct().ToArray();
             }
+
+            int movesCount = moves.Count;
+            for (int i = 0; i < movesCount; i++)
+            {
+                if (moves[i].Y == (side == -1 ? 0 : 7))
+                {
+                    moves.Add(new Point(moves[i].X + 100, moves[i].Y));
+                    moves.Add(new Point(moves[i].X + 100, moves[i].Y));
+                    moves.Add(new Point(moves[i].X + 100, moves[i].Y));
+                    moves.Add(new Point(moves[i].X + 100, moves[i].Y));
+                    moves.RemoveAt(i);
+                }
+            }
+
             return moves.Distinct().ToArray();
         }
 
@@ -172,16 +184,30 @@ namespace ChessEmulator
                 if (b.BoardState[curPoint.X - 1, curPoint.Y - dir] == -side)
                     moves.Add(new Point(curPoint.X - 1, curPoint.Y - dir));
 
-            //TODO En Passente
 
-            List<Point> validMoves = new List<Point>();
-            foreach (Point mv in moves)
+            //Promotion
+            if (curPoint.Y == (side == -1 ? 0 : 7))
             {
-                if (b.willMoveSaveKing(new Move(this, mv)))
-                    validMoves.Add(mv);
+                moves.Add(new Point(-100, side));//Convert to bishop
+                moves.Add(new Point(-200, side));//Convert to rook
+                moves.Add(new Point(-300, side));//Convert to knight
+                moves.Add(new Point(-400, side));//Convert to queen
             }
 
-            return validMoves.Distinct().ToArray();
+            int movesCount = moves.Count;
+            for(int i = 0; i < movesCount;i++)
+            {
+                if(moves[i].Y == (side == -1 ? 0 : 7))
+                {
+                    moves.Add(new Point(moves[i].X + 100, moves[i].Y));
+                    moves.Add(new Point(moves[i].X + 100, moves[i].Y));
+                    moves.Add(new Point(moves[i].X + 100, moves[i].Y));
+                    moves.Add(new Point(moves[i].X + 100, moves[i].Y));
+                }
+            }
+
+            //TODO En Passente
+            return moves.Distinct().ToArray();
         }
 
         public override Point[] PotentialMoves(Point p, Board b)
@@ -191,8 +217,56 @@ namespace ChessEmulator
 
         public override bool Move(Point p, Board b)
         {
-            unmoved = false;
-            return base.Move(p, b);
+            int px = p.X;
+            px = (int)Math.Floor((double)px / 100) * 100;
+            //Promotion
+            if (px >= 100)
+            {
+                Point loc = new Point(p.X - px, p.Y);
+                Piece promote = new Pawn(side);
+                switch (p.X)
+                {
+                    case 100:
+                        promote = new Bishop(side);
+                        break;
+                    case 200:
+                        promote = new Castle(side);
+                        break;
+                    case 300:
+                        promote = new Knight(side);
+                        break;
+                    case 400:
+                        promote = new Queen(side);
+                        break;
+
+                }
+                b.BoardCalculations[loc.X, loc.Y] = promote;
+
+                b.BoardPicture[loc.X, loc.Y].Image = Board.BLANK;
+
+                Image img = Board.PAWN;
+                switch (promote.name)
+                {
+                    case "King": img = Board.KING; break;
+                    case "Queen": img = Board.QUEEN; break;
+                    case "Bishop": img = Board.BISHOP; break;
+                    case "Knight": img = Board.KNIGHT; break;
+                    case "Castle": img = Board.CASTLE; break;
+                    case "Pawn": img = Board.PAWN; break;
+                }
+                b.BoardPicture[loc.X, loc.Y].Image = (side == 1 ? img : Emulator.InvertImage(img));
+
+                b.BoardCalculations[curPoint.X, curPoint.Y] = null;
+                b.BoardPicture[curPoint.X, curPoint.Y].Image = Board.BLANK;
+                b.BoardState[curPoint.X, curPoint.Y] = 0;
+
+                return true;
+            }
+            else
+            {
+                unmoved = false;
+                return base.Move(p, b);
+            }
         }
     }
     public class King : Piece
@@ -353,38 +427,15 @@ namespace ChessEmulator
 
                 if (dir == 1)
                 {
-                    //King can't move through or onto any point where it can be captured
-                    if (b.BoardState[5, sy] == 0
-                     && !b.canBeKilled(new Point(5, sy), side)
-                     && b.BoardState[6, sy] == 0
-                     && !b.canBeKilled(new Point(6, sy), side))
-                        moves.Add(c.curPoint);
+
                 }
                 else if (dir == -1)
                 {
-                    //King can't move through or onto any point where it can be captured
-                    if (b.BoardState[1, sy] == 0
-                     && !b.canBeKilled(new Point(1, sy), side)
-                     && b.BoardState[2, sy] == 0
-                     && !b.canBeKilled(new Point(2, sy), side)
-                     && b.BoardState[3, sy] == 0
-                     && !b.canBeKilled(new Point(3, sy), side))
-                        moves.Add(c.curPoint);
+
                 }
 
             }
 
-            if (checkForKing)
-            {
-                List<Point> validMoves = new List<Point>();
-                foreach (Point mv in moves)
-                {
-                    if (b.willMoveSaveKing(new Move(this, mv)))
-                        validMoves.Add(mv);
-                }
-
-                return validMoves.Distinct().ToArray();
-            }
             return moves.Distinct().ToArray();
         }
         public override Point[] PotentialMoves(Point p, Board b)
@@ -501,18 +552,6 @@ namespace ChessEmulator
                     }
                 }
             }
-
-            if (checkForKing)
-            {
-                List<Point> validMoves = new List<Point>();
-                foreach (Point mv in moves)
-                {
-                    if (b.willMoveSaveKing(new Move(this, mv)))
-                        validMoves.Add(mv);
-                }
-
-                return validMoves.Distinct().ToArray();
-            }
             return moves.Distinct().ToArray();
         }
 
@@ -568,14 +607,8 @@ namespace ChessEmulator
                 }
             }
 
-            List<Point> validMoves = new List<Point>();
-            foreach (Point mv in moves)
-            {
-                if (b.willMoveSaveKing(new Move(this, mv)))
-                    validMoves.Add(mv);
-            }
 
-            return validMoves.Distinct().ToArray();
+            return moves.Distinct().ToArray();
         }
 
         public override Point[] PotentialMoves(Point p, Board b)
@@ -658,14 +691,8 @@ namespace ChessEmulator
                 }
             }
 
-            List<Point> validMoves = new List<Point>();
-            foreach (Point mv in moves)
-            {
-                if (b.willMoveSaveKing(new Move(this, mv)))
-                    validMoves.Add(mv);
-            }
 
-            return validMoves.Distinct().ToArray(); ;
+            return moves.Distinct().ToArray(); ;
         }
         public override Point[] PotentialMoves(Board b, bool checkForKing)
         {
@@ -717,17 +744,6 @@ namespace ChessEmulator
             }
 
 
-            if (checkForKing)
-            {
-                List<Point> validMoves = new List<Point>();
-                foreach (Point mv in moves)
-                {
-                    if (b.willMoveSaveKing(new Move(this, mv)))
-                        validMoves.Add(mv);
-                }
-
-                return validMoves.Distinct().ToArray();
-            }
             return moves.Distinct().ToArray();
         }
 
@@ -780,14 +796,7 @@ namespace ChessEmulator
                 }
             }
 
-            List<Point> validMoves = new List<Point>();
-            foreach (Point mv in moves)
-            {
-                if (b.willMoveSaveKing(new Move(this, mv)))
-                    validMoves.Add(mv);
-            }
-
-            return validMoves.Distinct().ToArray();
+            return moves.Distinct().ToArray();
         }
         public override Point[] PotentialMoves(Board b, bool checkForKing)
         {
@@ -815,17 +824,6 @@ namespace ChessEmulator
                 }
             }
 
-            if (checkForKing)
-            {
-                List<Point> validMoves = new List<Point>();
-                foreach (Point mv in moves)
-                {
-                    if (b.willMoveSaveKing(new Move(this, mv)))
-                        validMoves.Add(mv);
-                }
-
-                return validMoves.Distinct().ToArray();
-            }
             return moves.Distinct().ToArray();
         }
 
@@ -910,14 +908,8 @@ namespace ChessEmulator
                 }
             }
 
-            List<Point> validMoves = new List<Point>();
-            foreach (Point mv in moves)
-            {
-                if (b.willMoveSaveKing(new Move(this, mv)))
-                    validMoves.Add(mv);
-            }
 
-            return validMoves.Distinct().ToArray();
+            return moves.Distinct().ToArray();
         }
         public override Point[] PotentialMoves(Board b, bool checkForKing)
         {
@@ -968,17 +960,6 @@ namespace ChessEmulator
                 }
             }
 
-            if (checkForKing)
-            {
-                List<Point> validMoves = new List<Point>();
-                foreach (Point mv in moves)
-                {
-                    if (b.willMoveSaveKing(new Move(this, mv)))
-                        validMoves.Add(mv);
-                }
-
-                return validMoves.Distinct().ToArray();
-            }
             return moves.Distinct().ToArray();
         }
 

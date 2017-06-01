@@ -32,8 +32,8 @@ namespace ChessEmulator
 
             //Create players
             bool r = Player.rand.NextDouble() > .5;
-            p1 = new Rando(r ? 1 : -1);
-            p2 = new Killer(!r ? 1 : -1);
+            p1 = new Rando(1);
+            p2 = new Killer(-1);
 
             name1.Text = p2.name;
             name2.Text = p1.name;
@@ -68,7 +68,7 @@ namespace ChessEmulator
             }
 
             p.Clear();
-            p = (b.getPieces((curSide >= 1 ? -1 : 1)));
+            p = b.getPieces(-curSide);
             moves.Clear();
             foreach (Piece pc in p)
             {
@@ -85,31 +85,6 @@ namespace ChessEmulator
                 infoBox.Text = "Draw";
                 button1.Enabled = false;
             }
-
-            //TODO put in victory check
-            if(b.canKingBeKilled(-1,b))
-            {
-                foreach(Move mv in b.getAllMoves(-1, b))
-                {
-                    if (b.willMoveSaveKing(mv))
-                        return;
-                }
-                playersTurn = false;
-                infoBox.Text = "White victory";
-                button1.Enabled = false;
-            }
-            else if(b.canKingBeKilled(1,b))
-            {
-                foreach (Move mv in b.getAllMoves(1, b))
-                {
-                    if (b.willMoveSaveKing(mv))
-                        return;
-                }
-                playersTurn = false;
-                infoBox.Text = "Black victory";
-                button1.Enabled = false;
-            }
-
         }
 
         private void createBoard()
@@ -158,6 +133,21 @@ namespace ChessEmulator
                 {
                     Color inv = pic.GetPixel(x, y);
                     inv = Color.FromArgb(255, inv.R, 255, inv.B);
+                    pic.SetPixel(x, y, inv);
+                }
+            }
+            return pic;
+        }
+
+        public static Bitmap TintImageOrange(Image n)
+        {
+            Bitmap pic = new Bitmap(n);
+            for (int y = 0; (y <= (pic.Height - 1)); y++)
+            {
+                for (int x = 0; (x <= (pic.Width - 1)); x++)
+                {
+                    Color inv = pic.GetPixel(x, y);
+                    inv = Color.FromArgb(255, 255, 153, inv.B);
                     pic.SetPixel(x, y, inv);
                 }
             }

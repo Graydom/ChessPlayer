@@ -51,8 +51,8 @@ namespace ChessEmulator
             BoardState[0, 0] = 1;
             BoardState[1, 0] = 1;
             BoardState[2, 0] = 1;
-            BoardState[3, 0] = 1;
-            BoardState[4, 0] = 2;
+            BoardState[3, 0] = 2;
+            BoardState[4, 0] = 1;
             BoardState[5, 0] = 1;
             BoardState[6, 0] = 1;
             BoardState[7, 0] = 1;
@@ -68,8 +68,8 @@ namespace ChessEmulator
             BoardState[0, 7] = -1;
             BoardState[1, 7] = -1;
             BoardState[2, 7] = -1;
-            BoardState[3, 7] = -1;
-            BoardState[4, 7] = -2;
+            BoardState[3, 7] = -2;
+            BoardState[4, 7] = -1;
             BoardState[5, 7] = -1;
             BoardState[6, 7] = -1;
             BoardState[7, 7] = -1;
@@ -102,8 +102,8 @@ namespace ChessEmulator
             BoardCalculations[5, 0] = new Bishop(1);
             BoardCalculations[2, 0] = new Bishop(1);
 
-            BoardCalculations[4, 0] = new King(1);
-            BoardCalculations[3, 0] = new Queen(1);
+            BoardCalculations[4, 0] = new Queen(1);
+            BoardCalculations[3, 0] = new King(1);
 
             BoardCalculations[0, 6] = new Pawn(-1);
             BoardCalculations[1, 6] = new Pawn(-1);
@@ -123,8 +123,8 @@ namespace ChessEmulator
             BoardCalculations[5, 7] = new Bishop(-1);
             BoardCalculations[2, 7] = new Bishop(-1);
 
-            BoardCalculations[4, 7] = new King(-1);
-            BoardCalculations[3, 7] = new Queen(-1);
+            BoardCalculations[4, 7] = new Queen(-1);
+            BoardCalculations[3, 7] = new King(-1);
 
             for (int x = 0; x < 8; x++)
             {
@@ -150,7 +150,7 @@ namespace ChessEmulator
                         new Point((int)((7 - i) * (tileSize + margin)), (int)((7 - j) * (tileSize + margin)));
                     BoardPicture[i, j].Size = new Size((int)tileSize, (int)tileSize);
                     BoardPicture[i, j].Name = i + "," + j;
-                    BoardPicture[i, j].MouseHover += new EventHandler(tile_hover);
+                    BoardPicture[i, j].MouseEnter += new EventHandler(tile_hover);
                     BoardPicture[i, j].MouseLeave += new EventHandler(tile_leave);
                     BoardPicture[i, j].MouseClick += new MouseEventHandler(tile_select);
                 }
@@ -174,8 +174,8 @@ namespace ChessEmulator
             BoardPicture[5, 0].Image = Bishop;
             BoardPicture[2, 0].Image = Bishop;
 
-            BoardPicture[4, 0].Image = King;
-            BoardPicture[3, 0].Image = Queen;
+            BoardPicture[4, 0].Image = Queen;
+            BoardPicture[3, 0].Image = King;
 
             //Black Pieces
             BoardPicture[0, 6].Image = Emulator.InvertImage(Pawn);
@@ -196,10 +196,38 @@ namespace ChessEmulator
             BoardPicture[5, 7].Image = Emulator.InvertImage(Bishop);
             BoardPicture[2, 7].Image = Emulator.InvertImage(Bishop);
 
-            BoardPicture[4, 7].Image = Emulator.InvertImage(King);
-            BoardPicture[3, 7].Image = Emulator.InvertImage(Queen);
+            BoardPicture[4, 7].Image = Emulator.InvertImage(Queen);
+            BoardPicture[3, 7].Image = Emulator.InvertImage(King);
             #endregion
 
+        }
+
+        public void redrawBoard()
+        {
+            for (int i = 0; i < 8; i++)
+            {
+                for (int y = 0; y < 8; y++)
+                {
+                    if (BoardCalculations[i, y] != null)
+                    {
+                        Image img = Board.PAWN;
+                        switch (BoardCalculations[i, y].name)
+                        {
+                            case "King": img = Board.KING; break;
+                            case "Queen": img = Board.QUEEN; break;
+                            case "Bishop": img = Board.BISHOP; break;
+                            case "Knight": img = Board.KNIGHT; break;
+                            case "Castle": img = Board.CASTLE; break;
+                            case "Pawn": img = Board.PAWN; break;
+                        }
+                        BoardPicture[i, y].Image = (BoardCalculations[i, y].side == 1 ? img : Emulator.InvertImage(img));
+                    }
+                    else
+                    {
+                        BoardPicture[i, y].Image = BLANK;
+                    }
+                }
+            }
         }
 
         public Board Clone(Board b)
@@ -369,45 +397,44 @@ namespace ChessEmulator
             if (BoardCalculations[x, y] != null)
                 foreach (Point m in BoardCalculations[x, y].PotentialMoves(this))
                 {
-                    BoardPicture[m.X, m.Y].Image = Emulator.TintImageGreen(BoardPicture[m.X, m.Y].Image);
+                    if (m.X >= 100)
+                    {
+                        
+                        int px = m.X;
+                        px = (int)Math.Floor((double)px / 100) * 100;
+                        //Promotion
+                        Point loc = new Point(m.X - px, m.Y);
+                        int side = loc.X == 7 ? 1 : -1;
+                        Image img = Board.PAWN;
+                        if(side == -1)
+                        {
+                            img = Emulator.InvertImage(img);
+                        }
+                        BoardPicture[loc.X, loc.Y].Image = Emulator.TintImageOrange(img);
+
+                    }
+                    else
+                    {
+                        BoardPicture[m.X, m.Y].Image = Emulator.TintImageGreen(BoardPicture[m.X, m.Y].Image);
+                    }
                 }
         }
 
         private void tile_leave(object sender, System.EventArgs e)
         {
             PictureBox b = sender as PictureBox;
-            if (b.Image == null)
-                return;
             string[] s = b.Name.Split(',');
             int x = Convert.ToInt16(s[0]);
             int y = Convert.ToInt16(s[1]);
 
-            if (BoardCalculations[x, y] != null && new Point(x,y) != selectedTile)
+            if (selectedTile != new Point(-1, -1))
             {
-                foreach (Point m in BoardCalculations[x, y].PotentialMoves(this))
-                {
-                    int X = m.X;
-                    int Y = m.Y;
-                    if (BoardCalculations[X, Y] == null)
-                    {
-                        BoardPicture[X, Y].Image = Board.BLANK;
-                    }
-                    else
-                    {
-                        Piece p = BoardCalculations[X, Y];
-                        Image img = Board.PAWN;
-                        switch (p.name)
-                        {
-                            case "King": img = Board.KING; break;
-                            case "Queen": img = Board.QUEEN; break;
-                            case "Bishop": img = Board.BISHOP; break;
-                            case "Knight": img = Board.KNIGHT; break;
-                            case "Castle": img = Board.CASTLE; break;
-                            case "Pawn": img = Board.PAWN; break;
-                        }
-                        BoardPicture[X, Y].Image = (p.side == 1 ? img : Emulator.InvertImage(img));
-                    }
-                }
+                if (!(currentlyMoving))
+                    redrawBoard();
+            }
+            else
+            {
+                redrawBoard();
             }
         }
 
@@ -445,31 +472,7 @@ namespace ChessEmulator
                 BoardPicture[selectedTile.X, selectedTile.Y].Image = (p.side == 1 ? img : Emulator.InvertImage(img));
 
 
-                //Unhighlight potential moves
-                foreach (Point m in BoardCalculations[selectedTile.X, selectedTile.Y].PotentialMoves(this))
-                {
-                    int X = m.X;
-                    int Y = m.Y;
-                    if (BoardCalculations[X, Y] == null)
-                    {
-                        BoardPicture[X, Y].Image = Board.BLANK;
-                    }
-                    else
-                    {
-                        p = BoardCalculations[X, Y];
-                        img = Board.PAWN;
-                        switch (p.name)
-                        {
-                            case "King": img = Board.KING; break;
-                            case "Queen": img = Board.QUEEN; break;
-                            case "Bishop": img = Board.BISHOP; break;
-                            case "Knight": img = Board.KNIGHT; break;
-                            case "Castle": img = Board.CASTLE; break;
-                            case "Pawn": img = Board.PAWN; break;
-                        }
-                        BoardPicture[X, Y].Image = (p.side == 1 ? img : Emulator.InvertImage(img));
-                    }
-                }
+                redrawBoard();
 
                 //Move selected piece
                 BoardCalculations[selectedTile.X, selectedTile.Y].Move(new Point(x, y), this);
@@ -490,7 +493,27 @@ namespace ChessEmulator
                     BoardPicture[x, y].Image = Emulator.TintImageBlue(BoardPicture[x, y].Image);
                     foreach (Point m in BoardCalculations[x, y].PotentialMoves(this))
                     {
-                        BoardPicture[m.X, m.Y].Image = Emulator.TintImageGreen(BoardPicture[m.X, m.Y].Image);
+
+                        if (m.X >= 100)
+                        {
+
+                            int px = m.X;
+                            px = (int)Math.Floor((double)px / 100) * 100;
+                            //Promotion
+                            Point loc = new Point(m.X - px, m.Y);
+                            int side = loc.Y == 7 ? 1 : -1;
+                            Image img = Board.PAWN;
+                            if (side == -1)
+                            {
+                                img = Emulator.InvertImage(img);
+                            }
+                            BoardPicture[loc.X, loc.Y].Image = Emulator.TintImageOrange(img);
+
+                        }
+                        else
+                        {
+                            BoardPicture[m.X, m.Y].Image = Emulator.TintImageGreen(BoardPicture[m.X, m.Y].Image);
+                        }
                     }
 
                     currentlyMoving = true;
@@ -500,52 +523,14 @@ namespace ChessEmulator
                 else if (new Point(x, y) != selectedTile && currentlyMoving
                     && !BoardCalculations[selectedTile.X,selectedTile.Y].PotentialMoves(this).Contains(new Point(x,y)))
                 {
+                    redrawBoard();
+
                     BoardPicture[x, y].Image = Emulator.TintImageBlue(BoardPicture[x, y].Image);
                     foreach (Point m in BoardCalculations[x, y].PotentialMoves(this))
                     {
                         BoardPicture[m.X, m.Y].Image = Emulator.TintImageGreen(BoardPicture[m.X, m.Y].Image);
                     }
 
-                    //Unhighlight selected move
-                    Piece p = BoardCalculations[selectedTile.X, selectedTile.Y];
-                    Image img = Board.PAWN;
-                    switch (p.name)
-                    {
-                        case "King": img = Board.KING; break;
-                        case "Queen": img = Board.QUEEN; break;
-                        case "Bishop": img = Board.BISHOP; break;
-                        case "Knight": img = Board.KNIGHT; break;
-                        case "Castle": img = Board.CASTLE; break;
-                        case "Pawn": img = Board.PAWN; break;
-                    }
-                    BoardPicture[selectedTile.X, selectedTile.Y].Image = (p.side == 1 ? img : Emulator.InvertImage(img));
-
-
-                    //Unhighlight potential moves
-                    foreach (Point m in BoardCalculations[selectedTile.X, selectedTile.Y].PotentialMoves(this))
-                    {
-                        int X = m.X;
-                        int Y = m.Y;
-                        if (BoardCalculations[X, Y] == null)
-                        {
-                            BoardPicture[X, Y].Image = Board.BLANK;
-                        }
-                        else
-                        {
-                            p = BoardCalculations[X, Y];
-                            img = Board.PAWN;
-                            switch (p.name)
-                            {
-                                case "King": img = Board.KING; break;
-                                case "Queen": img = Board.QUEEN; break;
-                                case "Bishop": img = Board.BISHOP; break;
-                                case "Knight": img = Board.KNIGHT; break;
-                                case "Castle": img = Board.CASTLE; break;
-                                case "Pawn": img = Board.PAWN; break;
-                            }
-                            BoardPicture[X, Y].Image = (p.side == 1 ? img : Emulator.InvertImage(img));
-                        }
-                    }
                     selectedTile = new Point(x, y);
                 }
                 
@@ -567,33 +552,9 @@ namespace ChessEmulator
                     case "Pawn": img = Board.PAWN; break;
                 }
                 BoardPicture[selectedTile.X, selectedTile.Y].Image = (p.side == 1 ? img : Emulator.InvertImage(img));
-                
 
-                //Unhighlight potential moves
-                foreach (Point m in BoardCalculations[selectedTile.X, selectedTile.Y].PotentialMoves(this))
-                {
-                    int X = m.X;
-                    int Y = m.Y;
-                    if (BoardCalculations[X, Y] == null)
-                    {
-                        BoardPicture[X, Y].Image = Board.BLANK;
-                    }
-                    else
-                    {
-                        p = BoardCalculations[X, Y];
-                        img = Board.PAWN;
-                        switch (p.name)
-                        {
-                            case "King": img = Board.KING; break;
-                            case "Queen": img = Board.QUEEN; break;
-                            case "Bishop": img = Board.BISHOP; break;
-                            case "Knight": img = Board.KNIGHT; break;
-                            case "Castle": img = Board.CASTLE; break;
-                            case "Pawn": img = Board.PAWN; break;
-                        }
-                        BoardPicture[X, Y].Image = (p.side == 1 ? img : Emulator.InvertImage(img));
-                    }
-                }
+
+                redrawBoard();
                 selectedTile = new Point(-1, -1);
                 currentlyMoving = false;
             }
